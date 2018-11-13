@@ -262,7 +262,7 @@ end
 T = table(colKernelFunction, colPolynomilDegree, colPca, colLda, ...
     colCoding, colStandardize, colAccuracy);
 
-B = sortrows(T, [1, 2]);
+B = sortrows(T, [1, 7]);
 
 
 

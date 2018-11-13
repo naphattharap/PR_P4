@@ -25,6 +25,12 @@ totalNumberOfImages = length(imagesData);
 
 %%%%%%%%%%%%%%%% EXTRACT FEATURES %%%%%%%%%%%%
 
+% Define SVM Kernel function name that we're going to use.
+kernelFunctions = ["rbf", "linear", "polynomial"];
+
+% Polynomial degree that we want to test when KernelFunction is polynomial.
+polynomialDegree = [1, 2, 3, 4, 5, 6, 7 , 8, 9, 10];
+
 
 % Setting parameters here
 pcaTargetDim = [300, 300, 300, 300, 200, 200, 100, 100];
@@ -36,14 +42,20 @@ pcaTargetDim = [300, 300, 300, 300, 200, 200, 100, 100];
 Standardize = [0, 1, 0, 1, 0, 1, 0, 1];
 
 
+
+% % Setting parameters here !! this is only for testing loop
+% pcaTargetDim = [300];
+%  ldaTargetDim = [3];
+% % Coding — fitcecoc searches among 'onevsall' or 'onevsone'.
+%  Coding = ["onevsone"];
+% % Flag to standardize the predictor, 'Standardize' value are true (1) or false (0).
+% Standardize = [0];
+% polynomialDegree = [1,2,3];
+
 % K-fold
 K = 2;
 
-% Define SVM Kernel function name that we're going to use.
-kernelFunctions = ["rbf", "linear", "polynomial"];
 
-% Polynomial degree that we want to test when KernelFunction is polynomial.
-polynomialDegree = [1, 2, 3, 4, 5, 6, 7 , 8, 9, 10];
 
 
 % Split data into K folder by k-fold cross validation
@@ -193,7 +205,7 @@ for cond = 1:length(pcaTargetDim)
                 colStandardize = [colStandardize; Standardize(cond)];
                 colCoding = [colCoding; Coding(cond)];
                 colAccuracy = [colAccuracy; accuracyPercent];
-                colPolynomilDegree = [colPolynomilDegree; polyDegreeVal];
+                colPolynomilDegree = [colPolynomilDegree; string(polyDegreeVal)];
             end
         else
             % If KernelFunction is not "polynomial" we don't need loop.

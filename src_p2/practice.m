@@ -29,18 +29,17 @@ totalNumberOfImages = length(imagesData);
 kernelFunctions = ["rbf", "linear", "polynomial"];
 
 % Polynomial degree that we want to test when KernelFunction is polynomial.
-polynomialDegree = [1, 2, 3, 4, 5, 6, 7 , 8, 9, 10];
+polynomialDegree = [3, 4, 5, 6];
 
 
 % Setting parameters here
 pcaTargetDim = [300, 300, 300, 300, 200, 200, 100, 100];
- ldaTargetDim = [3, 3, 3, 3, 3, 3, 3, 3];
+ldaTargetDim = [3, 3, 3, 3, 3, 3, 3, 3];
 % Coding — fitcecoc searches among 'onevsall' or 'onevsone'.
- Coding = ["onevsone", "onevsone", "onevsall","onevsall",...
-     "onevsone", "onevsone", "onevsall","onevsall"];
+Coding = ["onevsone", "onevsone", "onevsall","onevsall",...
+    "onevsone", "onevsone", "onevsall","onevsall"];
 % Flag to standardize the predictor, 'Standardize' value are true (1) or false (0).
 Standardize = [0, 1, 0, 1, 0, 1, 0, 1];
-
 
 
 % % Setting parameters here !! this is only for testing loop
@@ -54,9 +53,6 @@ Standardize = [0, 1, 0, 1, 0, 1, 0, 1];
 
 % K-fold
 K = 2;
-
-
-
 
 % Split data into K folder by k-fold cross validation
 % it shuffles data and return indexes of folder
@@ -119,6 +115,58 @@ colPolynomilDegree = {};
 colAccuracy = {};
 colKernelFunction = {};
 
+% Grid search
+% Use PCA and LDA techniques to reduce dimesion of images from 128x128
+% pixel to above setting number.
+
+trainGrayscaleFeaturesGrid = extractFeaturesFromData(trainImages,'grayscale');
+[trainDataProjectedGrid, trainMeanProjectionGrid, trainVectorsProjectionGrid]...
+    = reduceDimensionality(trainGrayscaleFeaturesGrid, 'PCA', ...
+    300, trainLabels);
+
+[trainDataProjectedLdaGrid, meanProjectionLdaGrid, vectorsProjectionLdaGrid]...
+    = reduceDimensionality(trainDataProjectedGrid, 'LDA', ...
+    3, trainLabels);
+
+testGrayscaleFeaturesGrid = extractFeaturesFromData(testImages, 'grayscale');
+[testDataProjectedGrid, testDataMeanProjectionGrid, ...
+    testDataVectorsProjectionGrid] = ...
+    reduceDimensionality(testGrayscaleFeaturesGrid, 'PCA', ...
+    300, testLabels);
+
+[testDataProjectedLdaGrid, testDataMeanProjectionLdaGrid, ...
+    testDataVectorsProjectionLdaGrid] = ...
+    reduceDimensionality(testDataProjectedGrid, 'LDA', ...
+    3, testLabels);
+
+% - It is good practice to standardize the predictors.
+params = hyperparameters('fitcecoc',trainDataProjectedLda,trainLabels,'svm');
+params(2).Range = [1e-4,1e6];
+
+numberOfIteration = 30;
+MdlGridSearch = fitcecoc(trainDataProjectedLdaGrid, trainLabels,...
+    'OptimizeHyperparameters', 'all',...
+    'HyperparameterOptimizationOptions',...
+    struct('MaxObjectiveEvaluations',numberOfIteration,'Optimizer','gridsearch'), ...
+    'ClassNames',{'0','1','3','4','5','6','7'});
+
+predictLabelsGrid = predict(MdlGridSearch, testDataProjectedLdaGrid);
+lenData = length(predictLabelsGrid);
+
+
+sumAccuracyGrid = 0;
+testLabelsGrid = testLabels.';
+for j=1:lenData
+    %fprintf('Predict %f Actual %f\n', predictLabels(i), testLabels(i));
+    if string(predictLabelsGrid(j)) == string(testLabelsGrid(j))
+        sumAccuracyGrid = sumAccuracyGrid + 1;
+    end
+end
+accuracyPercentGrid = (sumAccuracyGrid/lenData)*100;
+
+fprintf('Result grid search precition: %f', accuracyPercentGrid)
+
+
 % Loop through all possible combinations set above.
 for cond = 1:length(pcaTargetDim)
     
@@ -145,8 +193,6 @@ for cond = 1:length(pcaTargetDim)
         reduceDimensionality(testDataProjected, 'LDA', ...
         ldaTargetDim(cond), testLabels);
     
-    
-    
     for i = 1:length(kernelFunctions)
         
         
@@ -168,9 +214,6 @@ for cond = 1:length(pcaTargetDim)
         % - 'Verbose': Display diagnostic messages during the training
         % - It is good practice to specify the class order.
         % - By default, the empty properties are filled to template.
-        
-        % Practice:
-        % - It is good practice to standardize the predictors.
         
         
         % if template is polynomail, test all defined degree.
@@ -196,9 +239,9 @@ for cond = 1:length(pcaTargetDim)
                 % Calculate prediciton result
                 accuracyPercent = accuracy(predictLabels, trainLabelTranspose);
                 
-                fprintf('KernelFunction %s PCA %.0f \tLDA %.0f \tCoding: %s \tStandardize %.0f \tPolynomial degree %.0f \tAccuracy %.0f percent.\n', ...
-                    kernelFunction, pcaTargetDim(cond), ldaTargetDim(cond), Coding(cond), ...
-                    Standardize(cond), polyDegreeVal, accuracyPercent);
+%                 fprintf('KernelFunction %s PCA %.0f \tLDA %.0f \tCoding: %s \tStandardize %.0f \tPolynomial degree %.0f \tAccuracy %.0f percent.\n', ...
+%                     kernelFunction, pcaTargetDim(cond), ldaTargetDim(cond), Coding(cond), ...
+%                     Standardize(cond), polyDegreeVal, accuracyPercent);
                 colPca = [colPca; pcaTargetDim(cond)];
                 colLda = [colLda; ldaTargetDim(cond)];
                 colKernelFunction = [colKernelFunction; kernelFunction];
@@ -224,9 +267,9 @@ for cond = 1:length(pcaTargetDim)
             
             % Calculate prediciton result
             accuracyPercent = accuracy(predictLabels, trainLabelTranspose);
-            fprintf('KernelFunction %s \tPCA %.0f \tLDA %.0f \tCoding: %s \tStandardize %.0f \tAccuracy %.0f percent.\n', ...
-                kernelFunction, pcaTargetDim(cond), ldaTargetDim(cond), Coding(cond), Standardize(cond), ...
-                accuracyPercent);
+%             fprintf('KernelFunction %s \tPCA %.0f \tLDA %.0f \tCoding: %s \tStandardize %.0f \tAccuracy %.0f percent.\n', ...
+%                 kernelFunction, pcaTargetDim(cond), ldaTargetDim(cond), Coding(cond), Standardize(cond), ...
+%                 accuracyPercent);
             
             inSampleError = resubLoss(Mdl);
             
@@ -258,11 +301,11 @@ end
 % disp(length(testLabels))
 % disp(arrAccuracy);
 
-
+% Combination of hyperparameters and accuracy
 T = table(colKernelFunction, colPolynomilDegree, colPca, colLda, ...
     colCoding, colStandardize, colAccuracy);
 
-B = sortrows(T, [1, 7]);
-
+% Sorted by accuracy ASC
+B = sortrows(T, 7);
 
 
